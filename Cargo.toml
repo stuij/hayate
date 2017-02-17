@@ -1,0 +1,8 @@
+[package]
+name = "hayate"
+version = "0.1.0"
+authors = ["Ties Stuij <ties@stuij.se>"]
+
+[dependencies]
+zip = "0.2"
+itertools = "0.5.9"

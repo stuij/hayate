@@ -1,0 +1,5 @@
+http://forums.shoryuken.com/discussion/188150/3rd-strike-lag-speed-tests:
+
+Something I noticed is that CPS3 was not displaying frames in sync with the camera, whereas every other console is in sync with the camera for the entire video. This is because the consoles refresh at 60Hz and CPS3 refreshes at 59.583 Hz, which means that each frame on CPS3 is displayed slightly longer on CPS3 than on console. This isn't really new information, but it's for whoever didn't already know. The difference in length of each frame from CPS3 to console is only about 110μs. There's some images below that help illustrate this.
+
+

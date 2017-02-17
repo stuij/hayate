@@ -1,0 +1,59 @@
+There seem to be two main CPS-3 emulators: the Mame port and the FBAlpha one. Both seem to be coded up mainly by Haze/ David Haywood, judging by the source code credits. Of those two, the FBAlpha one seems to be most readable. Probably because it was written later.
+
+I wanted to be able to step through the FBA CPS-3 program as it was running. As I'm coding on Linux, I thought it'd be handy to compile it on there. So I downloaded the libretro 'retroarch' repo from github, installed some extra packages:
+https://github.com/libretro/RetroArch/wiki/Compilation-guide-(Linux)
+apt-get -y install build-essential libxkbcommon-dev zlib1g-dev libfreetype6-dev libegl1-mesa-dev libgbm-dev nvidia-cg-toolkit nvidia-cg-dev libavcodec-dev libsdl2-dev libsdl-image1.2-dev libxml2-dev
+
+and compiled it:
+./configure --disable-ffmpeg
+make
+make install
+
+Then I downloaded the 'libretro-fbalpha'. In the top of the makefile-libretro file, I set 'DEBUG' to 1, to compile in debug info and I compiled (in the libretro-fbalpha root):
+https://bbs.nextthing.co/t/building-retroarch-and-cores-from-scratch-on-pocket-c-h-i-p/8412
+make -f makefile-libretro
+
+Which produces a shared object file in the repo root that we call with retroarch:
+retroarch -L fbalpha_libretro.so ~/code/hayate/roms/sf3iiin/sfiii3n.zip
+
+To my surprise, that just worked! Albeit a bit fast. Onwards to gdb:
+
+gdb retroarch
+
+Now we want to set a breakpoint in the CPS-3 code, but we can't yet, as retroarch loads the so during the course of the program. So first we set a breakpoint at a stage that the .so has loaded, then we set a breakpoint where we want:
+
+start -L fbalpha_libretro.so ~/code/hayate/roms/sf3iiin/sfiii3n.zip
+b content_init
+c
+b cps3Init
+c
+backtrace
+
+Breakpoint 4 at 0x7fffeabe97f5: file src/burn/drv/cps3/cps3run.cpp, line 1078.
+(gdb) backtrace
+#0  cps3Init () at src/burn/drv/cps3/cps3run.cpp:1078
+#1  0x00007fffeabefafd in sfiii3Init () at src/burn/drv/cps3/d_cps3.cpp:1137
+#2  0x00007fffeaaa7646 in BurnDrvInit () at src/burn/burn.cpp:624
+#3  0x00007fffeb561169 in fba_init (driver=6839, game_zip_name=0x7fffffff8d60 "sfiii3n") at src/burner/libretro/libretro.cpp:1502
+#4  0x00007fffeb5617e7 in retro_load_game (info=0x8ead50) at src/burner/libretro/libretro.cpp:1685
+#5  0x00000000004141d1 in core_load_game (load_info=load_info@entry=0x7fffffff8eb0) at core_impl.c:293
+#6  0x00000000004276f6 in content_file_load (info=info@entry=0x8ead50, content=content@entry=0x8eba70, content_ctx=content_ctx@entry=0x7fffffffb7a0, error_string=error_string@entry=0x7fffffffb790, special=0x0) at tasks/task_content.c:578
+#7  0x00000000004292a5 in content_file_init (error_string=0x7fffffffb790, content_ctx=0x7fffffffb7a0) at tasks/task_content.c:759
+#8  content_init () at tasks/task_content.c:1441
+#9  0x000000000041c292 in event_init_content () at command.c:1348
+#10 command_event_init_core (data=0x87bc64 <current_core_type>) at command.c:1415
+#11 command_event (cmd=cmd@entry=CMD_EVENT_CORE_INIT, data=data@entry=0x87bc64 <current_core_type>) at command.c:2269
+#12 0x0000000000416aad in retroarch_main_init (argc=4, argv=argv@entry=0x7fffffffd5f8) at retroarch.c:1077
+#13 0x00000000004267d8 in content_load (info=0x7fffffffd4d0) at tasks/task_content.c:279
+#14 task_load_content (content_info=content_info@entry=0x7fffffffd4d0, content_ctx=content_ctx@entry=0x7fffffffd430, launched_from_menu=launched_from_menu@entry=false, mode=mode@entry=CONTENT_MODE_LOAD_FROM_CLI, error_string=error_string@entry=0x7fffffffd408) at tasks/task_content.c:834
+#15 0x0000000000428a93 in task_push_content_load_default (core_path=core_path@entry=0x0, fullpath=fullpath@entry=0x0, content_info=content_info@entry=0x7fffffffd4d0, type=type@entry=CORE_TYPE_PLAIN, mode=mode@entry=CONTENT_MODE_LOAD_FROM_CLI, cb=cb@entry=0x0, user_data=0x0) at tasks/task_content.c:1255
+#16 0x0000000000413352 in rarch_main (argc=4, argv=0x7fffffffd5f8, data=0x0) at frontend/frontend.c:113
+#17 0x00007ffff2bb2830 in __libc_start_main (main=0x410750 <main>, argc=4, argv=0x7fffffffd5f8, init=<optimized out>, fini=<optimized out>, rtld_fini=<optimized out>, stack_end=0x7fffffffd5e8) at ../csu/libc-start.c:291
+#18 0x0000000000410789 in _start ()
+
+Bingo :)
+
+Now we can inspect to our leasure.
+
+The first thing I want to know is if our rom files have their data encrypted or not. It would be handy to understand the game data like FBA does, so I won't have to get this info through gdb, but gdb'ing it is actually a bit easier, and this was a nice quest to set up fba for gdb, as we're probably going to do a lot of gdb sanity checking in the future.
+
