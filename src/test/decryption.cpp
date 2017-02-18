@@ -62,6 +62,8 @@ static void cps3_decrypt_game(void)
 }
 
 int main(int argc, char** argv) {
+  uint16_t rot_xor = rotxor(0xab04, 0x98fe);
+  printf("rotxor is %" PRIu16 "\n", rot_xor);
   uint32_t xormask = cps3_mask(0, cps3_key1, cps3_key2);
   printf("xormask is %" PRIu32 "\n", xormask);
   return 0;

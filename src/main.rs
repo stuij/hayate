@@ -32,6 +32,27 @@ struct Rom {
     game_gfx:   Box<u8>
 }
 
+fn rotate_left(val: u16, n: i32) -> u16 {
+    let aux: i32 = (val >> (16 - n)) as i32;
+    (((val << n) as i32 | aux) & 0xffff) as u16
+}
+
+fn rotxor(val: u16, x: u16) -> u16 {
+    let res = val.wrapping_add(rotate_left(val, 2));
+    rotate_left(res, 4) ^ (res & (val ^ x))
+}
+
+fn cps3_mask(addr: u32, key1: u32, key2: u32) -> u32 {
+    let mut addr_xor = addr ^ key1;
+    let mut val: u16 = addr_xor as u16 ^ 0xffff;
+    let mut val = rotxor(val, key2 as u16);
+    val ^= (addr_xor >> 16) as u16 ^ 0xffff;
+	  val = rotxor(val, (key2 >> 16) as u16);
+	  val ^= addr_xor as u16 ^ key2 as u16;
+	  let ret = val as u32 | ((val as u32) << 16);
+    ret 
+}
+
 fn check_data_crc(data: &DataSlice, zip: &mut zip::ZipArchive<fs::File>) {
     let bios_file = zip.by_name(data.name.as_str()).unwrap();
     assert_eq!(bios_file.crc32(), data.crc);
@@ -122,7 +143,12 @@ fn help() {
   hayate <CPS-3 game zipfile>");
 }
 
-fn main() {    
+fn main() {
+    println!("rotxor: {}", rotxor(0xab04, 0x98fe));
+    println!("cps3_mask: {}", cps3_mask(0, 0xb5fe053e, 0xfc03925a));
+    return;
+
+    
     let args: Vec<String> = env::args().collect();
 
     match args.len() {
