@@ -5,6 +5,7 @@ use std::io::Read;
 
 use common::{read_u16, read_u32, write_u16, write_u32};
 use game_info::*;
+use mem_defs;
 
 // game instruction decryption
 fn rotate_left(val: u16, n: i32) -> u16 {
@@ -60,7 +61,11 @@ fn read_zip(name: &str, zip: &mut zip::ZipArchive<fs::File>)
 
 fn mangle_bios_code(name: &str, zip: &mut zip::ZipArchive<fs::File>)
                     -> Vec<u8> {
-    read_zip(name, zip)
+    let mut bios = read_zip(name, zip);
+    assert!(bios.len() == mem_defs::BIOS_INSTR_LEN);
+    ensure_instruction_endianness(&mut bios[..]);
+
+    bios
 }
 
 fn interlace_game_code(instr: &mut Vec<u8>,
@@ -82,6 +87,24 @@ fn interlace_game_code(instr: &mut Vec<u8>,
     }
 }
 
+fn ensure_instruction_endianness(buff: &mut [u8]) {
+    // make sure we're word aligned
+    assert!(buff.len() % 4 == 0);
+    if cfg!(target_endian = "little") {
+        for i in (0..buff.len()).filter(|&x| x % 4 == 0) {
+            // switch bytes 0 and 3
+            let tmp = buff[i];
+            buff[i] = buff[i+3];
+            buff[i+3] = tmp;
+
+            // switch bytes 1 and 2
+            let tmp = buff[i+1];
+            buff[i+1] = buff[i+2];
+            buff[i+2] = tmp;
+        }
+    };
+}
+
 fn mangle_game_code(data: &Vec<DataSlice> , zip: &mut zip::ZipArchive<fs::File>)
                     -> Vec<u8> {
     let code_size: u32 = data.iter().map(|d| d.size).sum();
@@ -89,7 +112,7 @@ fn mangle_game_code(data: &Vec<DataSlice> , zip: &mut zip::ZipArchive<fs::File>)
 
     // interlace the 8 game data flashrom bytes, a byte
     // at the time; the one after the other
-    let mut instr = Vec::with_capacity(0x1000000);
+    let mut instr = Vec::with_capacity(mem_defs::GAME_INSTR_LEN);
 
     interlace_game_code(&mut instr, zip, &data[0], &data[1], &data[2], &data[3]);
     interlace_game_code(&mut instr, zip, &data[4], &data[5], &data[6], &data[7]);
@@ -99,14 +122,10 @@ fn mangle_game_code(data: &Vec<DataSlice> , zip: &mut zip::ZipArchive<fs::File>)
     // instructions in memory, or when we read the data.
     // Are we going for purity or for speed? We're going for speed,
     // so we'll convert now.
+    // (we also need the right endianness for our decryption routines)
+    ensure_instruction_endianness(&mut instr[..]);
 
-    //if cfg!(target_endian = "big") {
-    //    for 
-    //}
-    
-    // As we also need to decrypt the code, this is as good a place as any.
     instr
-
 }
 
 // entrypoint
@@ -114,16 +133,19 @@ pub fn init_mem(info: &GameInfo) {
     println!("rotxor: {}", rotxor(0xab04, 0x98fe));
     println!("cps3_mask: {}", cps3_mask(0, 0xb5fe053e, 0xfc03925a));
 
-    let mut bla = vec!(0, 0, 0, 255, 0);
-    println!("get u32: {:x}", read_u32(&bla[0..4]));
+    let mut bla = vec!(1, 2, 3, 4, 5, 6, 7, 8);
+    println!("bla start: {:?}", bla);
+    ensure_instruction_endianness(&mut bla);
+    println!("instruction endianness: {:?}", bla);
+    
+    println!("get u32: {:x}", read_u32(&bla[..]));
 
     write_u16(&mut bla[0..2], 0xFF);
     println!("write u16: {:?}", bla);
     write_u32(&mut bla[0..4], 0xEEEEEEEE);
     println!("write u16: {:?}", bla);
 
-    return;
-
+    //return;
     
     // open game zip file
     let file = fs::File::open(&info.path).expect("Couldn't open game file.");

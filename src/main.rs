@@ -5,7 +5,7 @@ use std::env;
 mod common;
 mod game_info;
 mod mem;
-
+mod mem_defs;
 
 fn init(info: &game_info::GameInfo) {
     mem::init_mem(info);
