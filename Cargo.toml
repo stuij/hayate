@@ -6,3 +6,4 @@ authors = ["Ties Stuij <ties@stuij.se>"]
 [dependencies]
 zip = "0.2"
 itertools = "0.5.9"
+byteorder = "1.0.0"
