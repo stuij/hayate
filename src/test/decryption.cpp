@@ -66,5 +66,7 @@ int main(int argc, char** argv) {
   printf("rotxor is %" PRIu16 "\n", rot_xor);
   uint32_t xormask = cps3_mask(0, cps3_key1, cps3_key2);
   printf("xormask is %" PRIu32 "\n", xormask);
+
+  uint32_t first_xor_mask = cps3_mask(0x06000000, cps3_key1, cps3_key2);
   return 0;
 }

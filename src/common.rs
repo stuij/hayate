@@ -53,4 +53,3 @@ pub fn write_u16(dst: &mut [u8], n: u16) {
 pub fn write_u32(dst: &mut [u8], n: u32) {
     write_num_bytes!(u32, 4, n, dst);
 }
-

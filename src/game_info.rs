@@ -31,7 +31,7 @@ pub fn get_game_info(path: String) -> GameInfo {
         id: String::from("sfiiin"),
         path: path,
         name: String::from("Street Fighter III: New Generation (Asia 970204, NO CD, bios set 1)"),
-        key: GameKey { a: 0xb5fe053e, b: 0xfc03925a },
+        key: GameKey { a: 0xa55432b4, b: 0x0c129981 },
         bios: DataSlice { name: String::from("sfiii3_japan_nocd.29f400.u2"),
                           size: 0x080000,
                           crc:  0x1edc6366 },
