@@ -1,9 +1,13 @@
 extern crate zip;
 
 use std::fs;
+use std::fs::File;
+use std::error::Error;
+use std::io::prelude::*;
 use std::io::Read;
+use std::path::Path;
 
-use common::{read_u16, read_u32, write_u16, write_u32};
+use common::{read_u32, write_u32};
 use game_info::*;
 use mem_defs;
 
@@ -139,33 +143,30 @@ fn mangle_game_code(data: &Vec<DataSlice> ,
     instr
 }
 
+fn write_bin(bin: &[u8], path_string: &str) {
+    let path = Path::new(path_string);
+    let display = path.display();
+
+    let mut file = match File::create(&path) {
+        Err(why) => panic!("couldn't create {}: {}",
+                           display,
+                           why.description()),
+        Ok(file) => file,
+    };
+
+    match file.write_all(bin) {
+        Err(why) => {
+            panic!("couldn't write to {}: {}", display,
+                                               why.description())
+        },
+        Ok(_) => println!("successfully wrote to {}", display),
+    }
+}
+
+
 // entrypoint
 pub fn init_mem(info: &GameInfo) {
-    let first_word = vec!(0xb1, 0x41, 0x11, 0x49);
-    let word  = read_u32(&first_word);
-    let mask = cps3_mask(mem_defs::GAME_INSTR_START as u32, info.key.a, info.key.b);
-    println!("word: {:x}, mask: {:x}", word, mask);    
-    let unmasked = word ^ mask;
-    println!("unmasked: {:x}", unmasked);
 
-    
-    println!("rotxor: {}", rotxor(0xab04, 0x98fe));
-    println!("cps3_mask: {}", cps3_mask(0, 0xb5fe053e, 0xfc03925a));
-
-    let mut bla = vec!(1, 2, 3, 4, 5, 6, 7, 8);
-    println!("bla start: {:?}", bla);
-    ensure_instruction_endianness(&mut bla);
-    println!("instruction endianness: {:?}", bla);
-    
-    println!("get u32: {:x}", read_u32(&bla[..]));
-
-    write_u16(&mut bla[0..2], 0xFF);
-    println!("write u16: {:?}", bla);
-    write_u32(&mut bla[0..4], 0xEEEEEEEE);
-    println!("write u16: {:?}", bla);
-
-    //return;
-    
     // open game zip file
     let file = fs::File::open(&info.path).expect("Couldn't open game file.");
     let mut zip = zip::ZipArchive::new(file).unwrap();
@@ -173,12 +174,34 @@ pub fn init_mem(info: &GameInfo) {
     // sanity-check the rom data, and convert it to the format
     // we will use in the emulator
     check_game_crcs(&info, &mut zip);
-    let bios_code = mangle_bios_code(info.bios.name.as_str(), &info.key, &mut zip);
-    let game_code = mangle_game_code(&info.instr, &info.key, &mut zip);
+    let mut bios_code = mangle_bios_code(info.bios.name.as_str(),
+                                         &info.key,
+                                         &mut zip);
+    let mut game_code = mangle_game_code(&info.instr, &info.key, &mut zip);
 
-    println!("instructions!: {:x} {:x} {:x} {:x}",
-             game_code[0],
-             game_code[1],
-             game_code[2],
-             game_code[3])
+
+    // make little endian again and write
+    ensure_instruction_endianness(&mut bios_code);    
+    write_bin(&bios_code, "bios.bin");
+
+    // make little endian again and write
+    ensure_instruction_endianness(&mut game_code);    
+    write_bin(&game_code, "game.bin");
+}
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn decrypt_word() {
+        // the first word in our test binary
+        let word = 0x491141b1;
+        let mask = cps3_mask(mem_defs::GAME_INSTR_START as u32,
+                             0xa55432b4,
+                             0x0c129981);
+        let unmasked = word ^ mask;
+        assert_eq!(0x06000ea0, unmasked);
+    }
 }
