@@ -90,7 +90,7 @@ fn mangle_bios_code(name: &str,
                     zip: &mut zip::ZipArchive<fs::File>)
                     -> Vec<u8> {
     let mut bios = read_zip(name, zip);
-    assert!(bios.len() == mem_defs::BIOS_INSTR_LEN);
+    assert!(bios.len() == mem_defs::BIOS_INSTR_LEN as usize);
     ensure_instruction_endianness(&mut bios);
     decrypt_instructions(&mut bios, mem_defs::BIOS_INSTR_START as u32, key);
     bios
@@ -124,7 +124,7 @@ fn mangle_game_code(data: &Vec<DataSlice> ,
 
     // interlace the 8 game data flashrom bytes, a byte
     // at the time; the one after the other
-    let mut instr = Vec::with_capacity(mem_defs::GAME_INSTR_LEN);
+    let mut instr = Vec::with_capacity(mem_defs::GAME_INSTR_LEN as usize);
 
     interlace_game_code(&mut instr, zip, &data[0], &data[1], &data[2], &data[3]);
     interlace_game_code(&mut instr, zip, &data[4], &data[5], &data[6], &data[7]);
@@ -138,7 +138,7 @@ fn mangle_game_code(data: &Vec<DataSlice> ,
     ensure_instruction_endianness(&mut instr);
 
     // and decrypt
-    decrypt_instructions(&mut instr, mem_defs::GAME_INSTR_START as u32, key);    
+    decrypt_instructions(&mut instr, mem_defs::GAME_INSTR_START, key);    
 
     instr
 }
@@ -198,7 +198,7 @@ mod test {
     fn decrypt_word() {
         // the first word in our test binary
         let word = 0x491141b1;
-        let mask = cps3_mask(mem_defs::GAME_INSTR_START as u32,
+        let mask = cps3_mask(mem_defs::GAME_INSTR_START,
                              0xa55432b4,
                              0x0c129981);
         let unmasked = word ^ mask;
