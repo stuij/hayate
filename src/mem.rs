@@ -7,7 +7,7 @@ use std::io::prelude::*;
 use std::io::Read;
 use std::path::Path;
 
-use common::{read_u32, write_u32};
+use byteorder::{BigEndian, ByteOrder};
 use game_info::*;
 use mem_defs;
 
@@ -35,9 +35,9 @@ fn cps3_mask(addr: u32, key1: u32, key2: u32) -> u32 {
 
 fn decrypt_instructions(buff: &mut [u8], addr_start: u32, key: &GameKey) {
     for i in (0..buff.len()).filter(|&x| x % 4 == 0) {
-        let word = read_u32(&buff[i..i+4]);
+        let word = BigEndian::read_u32(&buff[i..i+4]);
         let unmasked = word ^ cps3_mask(addr_start+i as u32, key.a, key.b);
-        write_u32(&mut buff[i..i+4], unmasked);
+        BigEndian::write_u32(&mut buff[i..i+4], unmasked);
     }
 }
 
@@ -67,31 +67,12 @@ fn read_zip(name: &str, zip: &mut zip::ZipArchive<fs::File>)
     data
 }
 
-fn ensure_instruction_endianness(buff: &mut [u8]) {
-    // make sure we're word aligned
-    assert!(buff.len() % 4 == 0);
-    if cfg!(target_endian = "little") {
-        for i in (0..buff.len()).filter(|&x| x % 4 == 0) {
-            // switch bytes 0 and 3
-            let tmp = buff[i];
-            buff[i] = buff[i+3];
-            buff[i+3] = tmp;
-
-            // switch bytes 1 and 2
-            let tmp = buff[i+1];
-            buff[i+1] = buff[i+2];
-            buff[i+2] = tmp;
-        }
-    };
-}
-
 fn mangle_bios_code(name: &str,
                     key: &GameKey,
                     zip: &mut zip::ZipArchive<fs::File>)
                     -> Vec<u8> {
     let mut bios = read_zip(name, zip);
     assert!(bios.len() == mem_defs::BIOS_INSTR_LEN as usize);
-    ensure_instruction_endianness(&mut bios);
     decrypt_instructions(&mut bios, mem_defs::BIOS_INSTR_START as u32, key);
     bios
 }
@@ -128,14 +109,6 @@ fn mangle_game_code(data: &Vec<DataSlice> ,
 
     interlace_game_code(&mut instr, zip, &data[0], &data[1], &data[2], &data[3]);
     interlace_game_code(&mut instr, zip, &data[4], &data[5], &data[6], &data[7]);
-
-    // The SH2 CPU is big-endian. If the host CPU that does the emulation is
-    // little-endian, we need to make a decision on if we want to convert
-    // instructions in memory, or when we read the data.
-    // Are we going for purity or for speed? We're going for speed,
-    // so we'll convert now.
-    // (we also need the right endianness for our decryption routines)
-    ensure_instruction_endianness(&mut instr);
 
     // and decrypt
     decrypt_instructions(&mut instr, mem_defs::GAME_INSTR_START, key);    
@@ -174,18 +147,12 @@ pub fn init_mem(info: &GameInfo) {
     // sanity-check the rom data, and convert it to the format
     // we will use in the emulator
     check_game_crcs(&info, &mut zip);
-    let mut bios_code = mangle_bios_code(info.bios.name.as_str(),
+    let game_code = mangle_game_code(&info.instr, &info.key, &mut zip);
+    let bios_code = mangle_bios_code(info.bios.name.as_str(),
                                          &info.key,
                                          &mut zip);
-    let mut game_code = mangle_game_code(&info.instr, &info.key, &mut zip);
-
-
-    // make little endian again and write
-    ensure_instruction_endianness(&mut bios_code);    
+    
     write_bin(&bios_code, "bios.bin");
-
-    // make little endian again and write
-    ensure_instruction_endianness(&mut game_code);    
     write_bin(&game_code, "game.bin");
 }
 

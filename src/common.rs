@@ -2,11 +2,8 @@ use std::ptr;
 use std::mem;
 
 // Took the read and write bytes code with minor modifications from the
-// byteorder crate.
-// The reason we're not using the actual crate is that byteorder will always
-// try to convert the byte interpreted data to the processors native byte order,
-// which will result in a byte reshuffle on every byte read (on a little-endian
-// machine). That doesn't sound very efficient for a cpu emulator.
+// byteorder crate. These don't try and reorder bytes for the target
+// hardware.
 macro_rules! read_num_bytes {
     ($ty:ty, $size:expr, $src:expr) => ({
         assert!($size <= $src.len());
