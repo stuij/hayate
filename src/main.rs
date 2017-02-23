@@ -3,7 +3,7 @@ extern crate byteorder;
 
 use std::env;
 
-mod common;
+// mod common;
 mod game_info;
 mod mem;
 mod mem_defs;
@@ -23,7 +23,7 @@ fn main() {
     match args.len() {
         2 => {
             let sfiiin = game_info::get_game_info(args[1].to_string());
-            init(&sfiiin)
+            let rom = init(&sfiiin);
         },
         _ => {
             help();

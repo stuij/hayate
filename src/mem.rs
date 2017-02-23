@@ -67,6 +67,8 @@ fn read_zip(name: &str, zip: &mut zip::ZipArchive<fs::File>)
     data
 }
 
+
+// mangling bits
 fn mangle_bios_code(name: &str,
                     key: &GameKey,
                     zip: &mut zip::ZipArchive<fs::File>)
@@ -79,14 +81,14 @@ fn mangle_bios_code(name: &str,
 
 fn interlace_game_code(instr: &mut Vec<u8>,
                   zip: &mut zip::ZipArchive<fs::File>,
-                  a_in: &DataSlice,
-                  b_in: &DataSlice,
-                  c_in: &DataSlice,
-                  d_in: &DataSlice) {
-    let a = read_zip(a_in.name.as_str(), zip);
-    let b = read_zip(b_in.name.as_str(), zip);
-    let c = read_zip(c_in.name.as_str(), zip);
-    let d = read_zip(d_in.name.as_str(), zip);
+                  a_info: &DataSlice,
+                  b_info: &DataSlice,
+                  c_info: &DataSlice,
+                  d_info: &DataSlice) {
+    let a = read_zip(a_info.name.as_str(), zip);
+    let b = read_zip(b_info.name.as_str(), zip);
+    let c = read_zip(c_info.name.as_str(), zip);
+    let d = read_zip(d_info.name.as_str(), zip);
 
     for (i, j, k, l) in izip!(a, b, c, d) {
         instr.push(i);
@@ -101,7 +103,7 @@ fn mangle_game_code(data: &Vec<DataSlice> ,
                     zip: &mut zip::ZipArchive<fs::File>)
                     -> Vec<u8> {
     let code_size: u32 = data.iter().map(|d| d.size).sum();
-    println!("game data size: 0x{:x}", code_size);
+    println!("game code size: 0x{:x}", code_size);
 
     // interlace the 8 game data flashrom bytes, a byte
     // at the time; the one after the other
@@ -115,6 +117,34 @@ fn mangle_game_code(data: &Vec<DataSlice> ,
 
     instr
 }
+
+fn interlace_gfx(instr: &mut Vec<u8>,
+                  zip: &mut zip::ZipArchive<fs::File>,
+                  a_info: &DataSlice,
+                  b_info: &DataSlice) {
+    let a = read_zip(a_info.name.as_str(), zip);
+    let b = read_zip(b_info.name.as_str(), zip);
+
+    for (i, j) in izip!(a, b) {
+        instr.push(i);
+        instr.push(j);
+    }
+}
+
+fn mangle_gfx_data(data: &Vec<DataSlice>, zip: &mut zip::ZipArchive<fs::File>)
+                   -> Vec<u8> {
+    let gfx_size: u32 = data.iter().map(|d| d.size).sum();
+    println!("game gfx size: 0x{:x}", gfx_size);
+
+    let mut gfx = Vec::with_capacity(gfx_size as usize);
+
+    for i in (0..data.len()).filter(|&x| x % 2 == 0) {
+        interlace_gfx(&mut gfx, zip, &data[i], &data[i+1]);
+    }
+
+    gfx
+}
+
 
 fn write_bin(bin: &[u8], path_string: &str) {
     let path = Path::new(path_string);
@@ -138,7 +168,7 @@ fn write_bin(bin: &[u8], path_string: &str) {
 
 
 // entrypoint
-pub fn init_mem(info: &GameInfo) {
+pub fn init_mem(info: &GameInfo) -> GameRom {
 
     // open game zip file
     let file = fs::File::open(&info.path).expect("Couldn't open game file.");
@@ -150,10 +180,16 @@ pub fn init_mem(info: &GameInfo) {
     let game_code = mangle_game_code(&info.instr, &info.key, &mut zip);
     let bios_code = mangle_bios_code(info.bios.name.as_str(),
                                          &info.key,
-                                         &mut zip);
-    
+                                     &mut zip);
+    let gfx_data = mangle_gfx_data(&info.gfx, &mut zip);
+
     write_bin(&bios_code, "bios.bin");
     write_bin(&game_code, "game.bin");
+    write_bin(&gfx_data, "gfx.bin");
+    
+    GameRom { bios: bios_code.into_boxed_slice(),
+              instr: game_code.into_boxed_slice(),
+              gfx: gfx_data.into_boxed_slice() }
 }
 
 

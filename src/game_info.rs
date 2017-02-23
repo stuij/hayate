@@ -20,10 +20,10 @@ pub struct GameInfo {
     pub gfx:  Vec<DataSlice>
 }
 
-pub struct Rom {
-    pub bios:       Box<u8>,
-    pub game_instr: Box<u8>,
-    pub game_gfx:   Box<u8>
+pub struct GameRom {
+    pub bios:  Box<[u8]>,
+    pub instr: Box<[u8]>,
+    pub gfx:   Box<[u8]>
 }
 
 pub fn get_game_info(path: String) -> GameInfo {
