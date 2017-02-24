@@ -1,6 +1,3 @@
-extern crate zip;
-
-
 use std::error::Error;
 use std::fs;
 use std::io::prelude::*;
@@ -9,6 +6,7 @@ use std::path;
 use byteorder::{BigEndian, ByteOrder};
 use game_info::*;
 use mem_defs;
+use zip;
 
 
 // game instruction decryption

@@ -1,6 +1,7 @@
 extern crate byteorder;
 extern crate clap;
 #[macro_use] extern crate itertools;
+extern crate zip;
 
 mod game_info;
 mod mem;
@@ -10,12 +11,21 @@ use clap::{Arg, App};
 use game_info::*;
 
 
-fn init(info: game_info::GameInfo, rom: GameRom) {
-    println!("We're supposed to start here..");
+fn assert_rom(rom: &GameRom) {
+    assert!(rom.bios[..4]  == [0x00, 0x00, 0x04, 0x00]);
+    assert!(rom.instr[..4] == [0x06, 0x00, 0x0e, 0xa0]);
+    assert!(rom.gfx[..4]   == [0x01, 0x04, 0xfd, 0xff]);
 
-    println!("bios start: {:?}", &rom.bios[..4]);
-    println!("instr start: {:?}", &rom.instr[..4]);
-    println!("gfx start: {:?}", &rom.gfx[..4]);
+    assert!(rom.bios.len()  == 0x00080000);
+    assert!(rom.instr.len() == 0x01000000);
+    assert!(rom.gfx.len()   == 0x04000000);
+}
+
+
+fn init(info: game_info::GameInfo, rom: GameRom) {
+    // just a smithering of test rom assertions
+    assert_rom(&rom);
+    println!("We're supposed to start here..");
 }
 
 
