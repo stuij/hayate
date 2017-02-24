@@ -1,9 +1,10 @@
 [package]
 name = "hayate"
-version = "0.1.0"
+version = "0.0.1"
 authors = ["Ties Stuij <ties@stuij.se>"]
 
 [dependencies]
-zip = "0.2"
-itertools = "0.5.9"
 byteorder = "1.0.0"
+clap = "2.20.5"
+itertools = "0.5.9"
+zip = "0.2"

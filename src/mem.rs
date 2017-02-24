@@ -1,15 +1,15 @@
 extern crate zip;
 
-use std::fs;
-use std::fs::File;
+
 use std::error::Error;
+use std::fs;
 use std::io::prelude::*;
-use std::io::Read;
-use std::path::Path;
+use std::path;
 
 use byteorder::{BigEndian, ByteOrder};
 use game_info::*;
 use mem_defs;
+
 
 // game instruction decryption
 fn rotate_left(val: u16, n: i32) -> u16 {
@@ -17,10 +17,12 @@ fn rotate_left(val: u16, n: i32) -> u16 {
     (((val << n) as i32 | aux) & 0xffff) as u16
 }
 
+
 fn rotxor(val: u16, x: u16) -> u16 {
     let res = val.wrapping_add(rotate_left(val, 2));
     rotate_left(res, 4) ^ (res & (val ^ x))
 }
+
 
 fn cps3_mask(addr: u32, key1: u32, key2: u32) -> u32 {
     let addr_xor = addr ^ key1;
@@ -30,8 +32,9 @@ fn cps3_mask(addr: u32, key1: u32, key2: u32) -> u32 {
 	  val = rotxor(val, (key2 >> 16) as u16);
 	  val ^= addr_xor as u16 ^ key2 as u16;
 	  let ret = val as u32 | ((val as u32) << 16);
-    ret 
+    ret
 }
+
 
 fn decrypt_instructions(buff: &mut [u8], addr_start: u32, key: &GameKey) {
     for i in (0..buff.len()).filter(|&x| x % 4 == 0) {
@@ -48,6 +51,7 @@ fn check_data_crc(data: &DataSlice, zip: &mut zip::ZipArchive<fs::File>) {
     assert_eq!(file.crc32(), data.crc);
 }
 
+
 fn check_game_crcs(info: &GameInfo, zip: &mut zip::ZipArchive<fs::File>) {
     check_data_crc(&info.bios, zip);
     for data in &info.instr {
@@ -57,6 +61,7 @@ fn check_game_crcs(info: &GameInfo, zip: &mut zip::ZipArchive<fs::File>) {
         check_data_crc(&data, zip);
     }
 }
+
 
 fn read_zip(name: &str, zip: &mut zip::ZipArchive<fs::File>)
                     -> Vec<u8> {
@@ -79,6 +84,7 @@ fn mangle_bios_code(name: &str,
     bios
 }
 
+
 fn interlace_game_code(instr: &mut Vec<u8>,
                   zip: &mut zip::ZipArchive<fs::File>,
                   a_info: &DataSlice,
@@ -98,6 +104,7 @@ fn interlace_game_code(instr: &mut Vec<u8>,
     }
 }
 
+
 fn mangle_game_code(data: &Vec<DataSlice> ,
                     key: &GameKey,
                     zip: &mut zip::ZipArchive<fs::File>)
@@ -113,10 +120,11 @@ fn mangle_game_code(data: &Vec<DataSlice> ,
     interlace_game_code(&mut instr, zip, &data[4], &data[5], &data[6], &data[7]);
 
     // and decrypt
-    decrypt_instructions(&mut instr, mem_defs::GAME_INSTR_START, key);    
+    decrypt_instructions(&mut instr, mem_defs::GAME_INSTR_START, key);
 
     instr
 }
+
 
 fn interlace_gfx(instr: &mut Vec<u8>,
                   zip: &mut zip::ZipArchive<fs::File>,
@@ -130,6 +138,7 @@ fn interlace_gfx(instr: &mut Vec<u8>,
         instr.push(j);
     }
 }
+
 
 fn mangle_gfx_data(data: &Vec<DataSlice>, zip: &mut zip::ZipArchive<fs::File>)
                    -> Vec<u8> {
@@ -147,10 +156,10 @@ fn mangle_gfx_data(data: &Vec<DataSlice>, zip: &mut zip::ZipArchive<fs::File>)
 
 
 fn write_bin(bin: &[u8], path_string: &str) {
-    let path = Path::new(path_string);
+    let path = path::Path::new(path_string);
     let display = path.display();
 
-    let mut file = match File::create(&path) {
+    let mut file = match fs::File::create(&path) {
         Err(why) => panic!("couldn't create {}: {}",
                            display,
                            why.description()),
@@ -167,8 +176,48 @@ fn write_bin(bin: &[u8], path_string: &str) {
 }
 
 
-// entrypoint
-pub fn init_mem(info: &GameInfo) -> GameRom {
+fn read_bin(path_string: &str) -> Vec<u8> {
+    let path = path::Path::new(path_string);
+    let display = path.display();
+    let mut bin = Vec::new();
+    
+    let mut file = match fs::File::open(&path) {
+        Err(why) => panic!("couldn't open {}: {}",
+                           display,
+                           why.description()),
+        Ok(file) => file
+    };
+
+    match file.read_to_end(&mut bin) {
+        Err(why) => {
+            panic!("couldn't write to {}: {}", display,
+                                               why.description())
+        },
+        Ok(_) => bin,
+    }
+}
+
+
+// interface
+pub fn dump_binaries(info: GameInfo, rom: GameRom) {
+    fs::create_dir_all(&info.id).unwrap();
+    write_bin(&rom.bios, &[&info.id, "bios.bin"].join("/"));
+    write_bin(&rom.instr, &[&info.id, "instr.bin"].join("/"));
+    write_bin(&rom.gfx, &[&info.id, "gfx.bin"].join("/"));
+}
+
+
+pub fn mem_from_bins(info: &GameInfo) -> GameRom {
+    // do stuff from here
+    GameRom{
+        bios:  read_bin(&[&info.path, "bios.bin"].join("/")).into_boxed_slice(),
+        instr: read_bin(&[&info.path, "instr.bin"].join("/")).into_boxed_slice(),
+        gfx:   read_bin(&[&info.path, "gfx.bin"].join("/")).into_boxed_slice(),
+    }
+}
+
+
+pub fn mem_from_zip(info: &GameInfo) -> GameRom {
 
     // open game zip file
     let file = fs::File::open(&info.path).expect("Couldn't open game file.");
@@ -183,10 +232,6 @@ pub fn init_mem(info: &GameInfo) -> GameRom {
                                      &mut zip);
     let gfx_data = mangle_gfx_data(&info.gfx, &mut zip);
 
-    write_bin(&bios_code, "bios.bin");
-    write_bin(&game_code, "game.bin");
-    write_bin(&gfx_data, "gfx.bin");
-    
     GameRom { bios: bios_code.into_boxed_slice(),
               instr: game_code.into_boxed_slice(),
               gfx: gfx_data.into_boxed_slice() }
