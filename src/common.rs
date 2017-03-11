@@ -1,55 +1,42 @@
 use std::ptr;
 use std::mem;
 
-// Took the read and write bytes code with minor modifications from the
-// byteorder crate. These don't try and reorder bytes for the target
-// hardware.
-macro_rules! read_num_bytes {
-    ($ty:ty, $size:expr, $src:expr) => ({
-        assert!($size <= $src.len());
-        let mut data: $ty = 0;
-        unsafe {
-            ptr::copy_nonoverlapping(
-                $src.as_ptr(),
-                &mut data as *mut $ty as *mut u8,
-                $size);
-        }
-        data
-    });
+
+pub trait MemAccess {
+    fn read_mem(src: &[u8], addr: usize) -> Self;
+    fn write_mem(src: &mut [u8], addr: usize, val: Self);
 }
 
-#[inline]
-pub fn read_u16 (src: &[u8]) -> u16 {
-    read_num_bytes!(u16, 2, src)
+
+impl MemAccess for u16 {
+    fn read_mem(src: &[u8], addr: usize) -> u16 {
+        (src[addr] as u16) << 8 | src[addr + 1] as u16
+    }
+
+    fn write_mem(src: &mut [u8], addr: usize, val: u16) {
+        src[addr]     = ((val >> 8)  & 0xFF) as u8;
+        src[addr + 1] = (val & 0xFF) as u8;
+    }
 }
 
-#[inline]
-pub fn read_u32 (src: &[u8]) -> u32 {
-    read_num_bytes!(u32, 4, src)
+
+impl MemAccess for u32 {
+    fn read_mem(src: &[u8], addr: usize) -> u32 {
+        (src[addr]     as u32) << 24 |
+        (src[addr + 1] as u32) << 16 |
+        (src[addr + 2] as u32) << 8  |
+         src[addr + 3] as u32
+    }
+
+    fn write_mem(src: &mut [u8], addr: usize, val: u32) {
+        src[addr]     = (val >> 24) as u8;
+        src[addr + 1] = ((val >> 16) & 0xFF) as u8;
+        src[addr + 2] = ((val >> 8)  & 0xFF) as u8;
+        src[addr + 3] = (val & 0xFF) as u8;
+    }
 }
 
-macro_rules! write_num_bytes {
-    ($ty:ty, $size:expr, $n:expr, $dst:expr) => ({
-        assert!($size <= $dst.len());
-        unsafe {
-            // N.B. https://github.com/rust-lang/rust/issues/22776
-            let bytes = mem::transmute::<_, [u8; $size]>($n);
-            ptr::copy_nonoverlapping((&bytes).as_ptr(),
-                                     $dst.as_mut_ptr(),
-                                     $size);
-        }
-    });
-}
 
-#[inline]
-pub fn write_u16(dst: &mut [u8], n: u16) {
-    write_num_bytes!(u16, 2, n, dst);
-}
-
-#[inline]
-pub fn write_u32(dst: &mut [u8], n: u32) {
-    write_num_bytes!(u32, 4, n, dst);
-}
 
 
 #[cfg(test)]
@@ -59,57 +46,29 @@ mod test {
     #[test]
     fn read_u16_from_vec() {
         let word = vec!(0x12, 0x34, 0x56, 0x78);
-        let half_word  = read_u16(&word[..2]);
-        assert_eq!(0x3412, half_word);
+        let half_word  = u16::read_mem(&word, 0);
+        assert_eq!(0x1234, half_word);
     }
 
-    #[test]
-    #[should_panic]
-    fn read_u16_from_vec_too_little_bytes() {
-        let word = vec!(0x12, 0x34, 0x56, 0x78);
-        read_u16(&word[..1]);
-    }
-    
     #[test]
     fn write_u16_to_vec() {
         let mut vec = vec!(1, 2, 3, 4, 5, 6, 7, 8);
-        write_u16(&mut vec[..2], 0xEEFF);
+        u16::write_mem(&mut vec, 0, 0xEEFF);
+        assert_eq!(vec, vec!(0xEE, 0xFF, 3, 4, 5, 6, 7, 8));
     }
 
-    
-    #[test]
-    #[should_panic]
-    fn write_u16_to_vec_too_many_bytes() {
-        let mut vec = vec!(1, 2, 3, 4, 5, 6, 7, 8);
-        write_u16(&mut vec[..1], 0xEEFF);
-    }
 
-    
     #[test]
     fn read_u32_from_vec() {
         let first_word = vec!(0x12, 0x34, 0x56, 0x78);
-        let word  = read_u32(&first_word);
-        assert_eq!(0x78563412, word);
+        let word  = u32::read_mem(&first_word, 0);
+        assert_eq!(0x12345678, word);
     }
 
-    #[test]
-    #[should_panic]
-    fn read_u32_from_vec_too_little_bytes() {
-        let first_word = vec!(0x12, 0x34, 0x56, 0x78, 0x9A);
-        read_u32(&first_word[..2]);
-    }
-    
     #[test]
     fn write_u32_to_vec() {
         let mut vec = vec!(1, 2, 3, 4, 5, 6, 7, 8);
-        write_u32(&mut vec[0..4], 0xCCDDEEFF);
-        assert_eq!(vec, vec!(0xFF, 0xEE, 0xDD, 0xCC, 5, 6, 7, 8));
-    }
-
-    #[test]
-    #[should_panic]
-    fn write_u32_to_vec_too_little_bytes() {
-        let mut vec = vec!(1, 2, 3, 4, 5, 6, 7, 8);
-        write_u32(&mut vec[0..2], 0xCCDDEEFF);
+        u32::write_mem(&mut vec, 0, 0xCCDDEEFF);
+        assert_eq!(vec, vec!(0xCC, 0xDD, 0xEE, 0xFF, 5, 6, 7, 8));
     }
 }

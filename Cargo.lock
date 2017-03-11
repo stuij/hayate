@@ -5,6 +5,7 @@ dependencies = [
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.20.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.5.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "thalgar 0.0.1",
  "zip 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -140,6 +141,10 @@ dependencies = [
  "libc 0.2.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "thalgar"
+version = "0.0.1"
 
 [[package]]
 name = "time"

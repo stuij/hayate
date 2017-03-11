@@ -178,7 +178,7 @@ fn read_bin(path_string: &str) -> Vec<u8> {
     let path = path::Path::new(path_string);
     let display = path.display();
     let mut bin = Vec::new();
-    
+
     let mut file = match fs::File::open(&path) {
         Err(why) => panic!("couldn't open {}: {}",
                            display,
