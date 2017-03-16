@@ -4,16 +4,17 @@ use std::io;
 use std::io::prelude::*;
 
 use thalgar;
-
+use thalgar::Bus;
 use bus;
 
 enum Cmd {
+    Error,
+    Overview,
     Quit,
     Run,
-    State,
     Step,
     Unknown,
-    Error,
+    View { start: u32, end: u32 },
 }
 
 
@@ -48,13 +49,23 @@ impl Debugger {
 
         // maybe not unwrap!
         match iter.next().unwrap() {
-            "quit"  => Cmd::Quit,
-            "run"   => Cmd::Run,
-            "state" => Cmd::State,
-            "step"  => Cmd::Step,
-            _       => Cmd::Unknown,
+            "o" => Cmd::Overview,
+            "q" => Cmd::Quit,
+            "r" => Cmd::Run,
+            "s" => Cmd::Step,
+            "v" => Cmd::View {
+                start: u32::from_str_radix(iter.next().unwrap(), 16).unwrap(),
+                end: u32::from_str_radix(iter.next().unwrap(), 16).unwrap()
+            },
+            _   => Cmd::Unknown,
         }
+    }
 
+    fn print_mem(&self, bus: &bus::Cps3Bus, start: u32, end: u32) {
+        for i in (start..end).filter(|x| x % 4 == 0) {
+            let val = bus.read_word(i);
+            println!("{:#010x}: {:#010x}", i, val);
+        }
     }
 
     pub fn debug(&mut self,
@@ -81,12 +92,13 @@ impl Debugger {
                 let cmd = self.get_cmd();
 
                 match cmd {
-                    Cmd::Error => { println!("Error"); process::exit(1) },
-                    Cmd::Quit => { println!("Ta.."); process::exit(0) },
-                    Cmd::Step => step = true,
-                    Cmd::State => println!("{}", cpu),
-                    Cmd::Run => run = true,
-                    Cmd::Unknown => println!("cmd not known")
+                    Cmd::Error    => { println!("Error"); process::exit(1) },
+                    Cmd::Overview => println!("{}", cpu),
+                    Cmd::Quit     => { println!("Ta.."); process::exit(0) },
+                    Cmd::Step     => step = true,
+                    Cmd::Run      => run = true,
+                    Cmd::Unknown  => println!("cmd not known"),
+                    Cmd::View {start, end} => self.print_mem(bus, start, end),
                 }
                 println!();
             }

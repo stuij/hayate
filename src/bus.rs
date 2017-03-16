@@ -22,6 +22,10 @@ impl Cps3Bus {
 
     fn read_mem<T: common::MemAccess>(&self, addr: u32) -> T {
         match addr {
+            MAIN_RAM_START ... MAIN_RAM_END => {
+                let offset = (addr ^ MAIN_RAM_START) as usize;
+                T::read_mem(&self.main_ram, offset)
+            },
             GAME_INSTR_START ... GAME_INSTR_END => {
                 let offset = (addr ^ GAME_INSTR_START) as usize;
                 T::read_mem(&self.rom.instr, offset)
