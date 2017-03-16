@@ -57,3 +57,8 @@ Now we can inspect to our leasure.
 
 The first thing I want to know is if our rom files have their data encrypted or not. It would be handy to understand the game data like FBA does, so I won't have to get this info through gdb, but gdb'ing it is actually a bit easier, and this was a nice quest to set up fba for gdb, as we're probably going to do a lot of gdb sanity checking in the future.
 
+
+--------
+
+
+rlwrap ... will do for now for all our editing needs.

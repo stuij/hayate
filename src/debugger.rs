@@ -63,7 +63,7 @@ impl Debugger {
 
     fn print_mem(&self, bus: &bus::Cps3Bus, start: u32, end: u32) {
         for i in (start..end).filter(|x| x % 4 == 0) {
-            let val = bus.read_word(i);
+            let val = bus.read_long(i);
             println!("{:#010x}: {:#010x}", i, val);
         }
     }
