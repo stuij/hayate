@@ -15,6 +15,7 @@ enum Cmd {
     Step,
     Unknown,
     View { start: u32, end: u32 },
+    ViewStack,
 }
 
 
@@ -38,7 +39,7 @@ impl Debugger {
         print!(">> ");
         io::stdout().flush().unwrap();
 
-        // don't just loose the error info!
+        // TODO: don't just loose the error info!
         handle.read_line(&mut buffer).unwrap_or(0);
         buffer
     }
@@ -47,15 +48,22 @@ impl Debugger {
         let mut input = self.get_input();
         let mut iter = input.split_whitespace();
 
-        // maybe not unwrap!
+        // TODO: maybe not unwrap!
         match iter.next().unwrap() {
             "o" => Cmd::Overview,
             "q" => Cmd::Quit,
             "r" => Cmd::Run,
             "s" => Cmd::Step,
-            "v" => Cmd::View {
-                start: u32::from_str_radix(iter.next().unwrap(), 16).unwrap(),
-                end: u32::from_str_radix(iter.next().unwrap(), 16).unwrap()
+            "v" =>  {
+                let first = iter.next().unwrap();
+                if first == "stack" {
+                    Cmd::ViewStack
+                } else {
+                    Cmd::View {
+                        start: u32::from_str_radix(first, 16).unwrap(),
+                        end: u32::from_str_radix(iter.next().unwrap(), 16).unwrap()
+                    }
+                }
             },
             _   => Cmd::Unknown,
         }
@@ -68,12 +76,17 @@ impl Debugger {
         }
     }
 
+    fn view_stack(&self, bus: &bus::Cps3Bus, start: u32, end: u32) {
+        self.print_mem(bus, end, start);
+    }
+
     pub fn debug(&mut self,
              cpu: &mut thalgar::Sh2,
              bus: &mut bus::Cps3Bus,
              mut run: bool) {
 
         let mut step = false;
+        let stack_start = cpu.get_regs().gpr[15];
 
         print!("\n-> ");
         self.disasm.disasemble(cpu, bus);
@@ -90,6 +103,7 @@ impl Debugger {
                 step = false;
             } else {
                 let cmd = self.get_cmd();
+                let regs = cpu.get_regs();
 
                 match cmd {
                     Cmd::Error    => { println!("Error"); process::exit(1) },
@@ -98,6 +112,9 @@ impl Debugger {
                     Cmd::Step     => step = true,
                     Cmd::Run      => run = true,
                     Cmd::Unknown  => println!("cmd not known"),
+                    Cmd::ViewStack => self.view_stack(bus,
+                                                      stack_start,
+                                                      regs.gpr[15]),
                     Cmd::View {start, end} => self.print_mem(bus, start, end),
                 }
                 println!();

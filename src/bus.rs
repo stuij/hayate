@@ -61,7 +61,6 @@ impl thalgar::Bus for Cps3Bus {
 
     fn write_long(&mut self, addr: u32, val: u32) {
         // see read_word
-        println!("writing {:#010x} with {:#010x}", addr, val);
         self.write_mem::<u32>(addr, val)
     }
 }
