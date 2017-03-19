@@ -88,20 +88,17 @@ impl Debugger {
         let mut step = false;
         let stack_start = cpu.get_regs().gpr[15];
 
-        print!("\n-> ");
-        self.disasm.disasemble(cpu, bus);
-
         // repl
         loop {
             // if run then just blast
             // let's keep this simplistic for now
             if run || step {
                 cpu.step(bus);
-
-                print!("-> ");
-                self.disasm.disasemble(cpu, bus);
                 step = false;
             } else {
+                print!("-> ");
+                self.disasm.disasemble(cpu, bus);
+
                 let cmd = self.get_cmd();
                 let regs = cpu.get_regs();
 
