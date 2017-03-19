@@ -8,11 +8,15 @@ use thalgar::Bus;
 use bus;
 
 enum Cmd {
+    Break { bkpt: u32 },
+    Disassemble { start: u32, end: u32 },
     Error,
     Overview,
     Quit,
     Run,
     Step,
+    Trace,
+    Untrace,
     Unknown,
     View { start: u32, end: u32 },
     ViewStack,
@@ -21,14 +25,14 @@ enum Cmd {
 
 pub struct Debugger {
     disasm: thalgar::Disassemble,
-    bpts: HashSet<u32>
+    bkpts: HashSet<u32>
 }
 
 
 impl Debugger {
     pub fn new() -> Debugger {
-        Debugger { disasm: thalgar::Disassemble,
-                   bpts: HashSet::new() }
+        Debugger { disasm: thalgar::Disassemble::new(),
+                   bkpts: HashSet::new() }
     }
 
     fn get_input(&self) -> String {
@@ -50,10 +54,19 @@ impl Debugger {
 
         // TODO: maybe not unwrap!
         match iter.next().unwrap() {
+            "b" => Cmd::Break {
+                bkpt: u32::from_str_radix(iter.next().unwrap(), 16).unwrap()
+            },
+            "d" => Cmd::Disassemble {
+                start: u32::from_str_radix(iter.next().unwrap(), 16).unwrap(),
+                end:   u32::from_str_radix(iter.next().unwrap(), 16).unwrap(),
+            },
             "o" => Cmd::Overview,
             "q" => Cmd::Quit,
             "r" => Cmd::Run,
             "s" => Cmd::Step,
+            "t" => Cmd::Trace,
+            "u" => Cmd::Untrace,
             "v" =>  {
                 let first = iter.next().unwrap();
                 if first == "stack" {
@@ -76,16 +89,25 @@ impl Debugger {
         }
     }
 
+    fn print_instr(&mut self, bus: &mut bus::Cps3Bus,
+                   start: u32, end: u32) {
+        self.disasm.print_range(bus, start, end);
+    }
+
     fn view_stack(&self, bus: &bus::Cps3Bus, start: u32, end: u32) {
         self.print_mem(bus, end, start);
     }
 
+    fn insert_bkpt(&mut self, bkpt: u32) {
+        self.bkpts.insert(bkpt);
+    }
     pub fn debug(&mut self,
              cpu: &mut thalgar::Sh2,
              bus: &mut bus::Cps3Bus,
              mut run: bool) {
 
         let mut step = false;
+        let mut trace = false;
         let stack_start = cpu.get_regs().gpr[15];
 
         // repl
@@ -93,21 +115,31 @@ impl Debugger {
             // if run then just blast
             // let's keep this simplistic for now
             if run || step {
+                if trace {
+                    self.disasm.disasemble(cpu, bus);
+                }
                 cpu.step(bus);
+                if self.bkpts.contains(&cpu.get_pc()) {
+                    run = false;
+                };
                 step = false;
             } else {
+                let regs = cpu.get_regs();
                 print!("-> ");
                 self.disasm.disasemble(cpu, bus);
-
                 let cmd = self.get_cmd();
-                let regs = cpu.get_regs();
 
                 match cmd {
+                    Cmd::Break { bkpt} => self.insert_bkpt(bkpt),
+                    Cmd::Disassemble { start, end } =>
+                        self.print_instr(bus, start, end),
                     Cmd::Error    => { println!("Error"); process::exit(1) },
                     Cmd::Overview => println!("{}", cpu),
                     Cmd::Quit     => { println!("Ta.."); process::exit(0) },
-                    Cmd::Step     => step = true,
                     Cmd::Run      => run = true,
+                    Cmd::Step     => step = true,
+                    Cmd::Trace    => trace = true,
+                    Cmd::Untrace  => trace = false,
                     Cmd::Unknown  => println!("cmd not known"),
                     Cmd::ViewStack => self.view_stack(bus,
                                                       stack_start,
