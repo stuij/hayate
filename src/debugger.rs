@@ -91,7 +91,7 @@ impl Debugger {
 
     fn print_instr(&mut self, bus: &mut bus::Cps3Bus,
                    start: u32, end: u32) {
-        self.disasm.print_range(bus, start, end);
+        self.disasm.disassemble_range(bus, start, end);
     }
 
     fn view_stack(&self, bus: &bus::Cps3Bus, start: u32, end: u32) {
