@@ -2,6 +2,7 @@ use std::process;
 use std::collections::HashSet;
 use std::io;
 use std::io::prelude::*;
+use std::str;
 
 use thalgar;
 use thalgar::Bus;
@@ -11,7 +12,8 @@ enum Cmd {
     Break { bkpt: u32 },
     ClearBkpt { bkpt: u32 },
     Disassemble { start: u32, end: u32 },
-    Error,
+    Empty,
+    Err { msg: &'static str },
     Info,
     List,
     Quit,
@@ -50,41 +52,114 @@ impl Debugger {
         buffer
     }
 
+
+    fn parse_break(&self, mut iter: str::SplitWhitespace) -> Cmd {
+        match iter.next() {
+            Some(x) => {
+                match u32::from_str_radix(x, 16) {
+                    Ok(x) => Cmd::Break { bkpt: x },
+                    Err(x) => Cmd::Err { msg: "couldn't parse address"}
+                }
+            },
+            None => Cmd::Err { msg: "no bkpt address"}
+        }
+    }
+
+
+    fn parse_break_clear(&self, mut iter: str::SplitWhitespace) -> Cmd {
+        match iter.next() {
+            Some(x) => {
+                match u32::from_str_radix(x, 16) {
+                    Ok(x) => Cmd::ClearBkpt { bkpt: x },
+                    Err(x) => Cmd::Err { msg: "couldn't parse address"}
+                }
+            },
+            None => Cmd::Err { msg: "no bkpt address"}
+        }
+    }
+
+
+    fn parse_disassemble(&self, mut iter: str::SplitWhitespace) -> Cmd {
+        let first = match iter.next() {
+            Some(x) => {
+                match u32::from_str_radix(x, 16) {
+                    Ok(x) => x,
+                    Err(x) => return Cmd::Err {
+                        msg: "couldn't parse first address"
+                    },
+                }
+            },
+            None => return Cmd::Err { msg: "no addresses given"}
+        };
+
+        let second = match iter.next() {
+            Some(x) => {
+                match u32::from_str_radix(x, 16) {
+                    Ok(x) => x,
+                    Err(x) => return Cmd::Err {
+                        msg: "couldn't parse second address"
+                    },
+                }
+            },
+            None => return Cmd::Err { msg: "no second address given"}
+        };
+
+        Cmd::Disassemble { start: first, end: second }
+    }
+
+
+    fn parse_view(&self, mut iter: str::SplitWhitespace) -> Cmd {
+        let what = match iter.next() {
+            Some(x) => x,
+            None => return Cmd::Err { msg: "no addresses given"}
+        };
+
+        if what == "stack" {
+            return Cmd::ViewStack
+        }
+
+        let first = match u32::from_str_radix(what, 16) {
+            Ok(x) => x,
+            Err(x) => return Cmd::Err {
+                msg: "couldn't parse first address"
+            },
+        };
+
+        let second = match iter.next() {
+            Some(x) => {
+                match u32::from_str_radix(x, 16) {
+                    Ok(x) => x,
+                    Err(x) => return Cmd::Err {
+                        msg: "couldn't parse second address"
+                    },
+                }
+            },
+            None => return Cmd::Err { msg: "no second address given"}
+        };
+
+        Cmd::View { start: first, end: second }
+    }
+
+
     fn get_cmd(&self) -> Cmd {
         let mut input = self.get_input();
         let mut iter = input.split_whitespace();
 
         // TODO: maybe not unwrap!
-        match iter.next().unwrap() {
-            "b" => Cmd::Break {
-                bkpt: u32::from_str_radix(iter.next().unwrap(), 16).unwrap()
-            },
-            "clear" => Cmd::ClearBkpt {
-                bkpt: u32::from_str_radix(iter.next().unwrap(), 16).unwrap()
-            },
-            "d" => Cmd::Disassemble {
-                start: u32::from_str_radix(iter.next().unwrap(), 16).unwrap(),
-                end:   u32::from_str_radix(iter.next().unwrap(), 16).unwrap(),
-            },
-            "i" => Cmd::Info,
-            "l" => Cmd::List,
-            "q" => Cmd::Quit,
-            "r" => Cmd::Run,
-            "s" => Cmd::Step,
-            "t" => Cmd::Trace,
-            "u" => Cmd::Untrace,
-            "v" =>  {
-                let first = iter.next().unwrap();
-                if first == "stack" {
-                    Cmd::ViewStack
-                } else {
-                    Cmd::View {
-                        start: u32::from_str_radix(first, 16).unwrap(),
-                        end: u32::from_str_radix(iter.next().unwrap(), 16).unwrap()
-                    }
-                }
-            },
-            _   => Cmd::Unknown,
+        match iter.next() {
+            Some("b") => self.parse_break(iter),
+            Some("clear") => self.parse_break_clear(iter),
+            Some("d") => self.parse_disassemble(iter),
+            Some("i") => Cmd::Info,
+            Some("l") => Cmd::List,
+            Some("q") => Cmd::Quit,
+            Some("r") => Cmd::Run,
+            Some("s") => Cmd::Step,
+            Some("t") => Cmd::Trace,
+            Some("u") => Cmd::Untrace,
+            Some("v") => self.parse_view(iter),
+            Some(_) => Cmd::Unknown,
+            None => Cmd::Empty,
         }
     }
 
@@ -140,11 +215,11 @@ impl Debugger {
                     Cmd::ClearBkpt { bkpt } => self.clear_bkpt(bkpt),
                     Cmd::Disassemble { start, end } =>
                         self.disasm.disassemble_range(bus, start, end, pc),
-                    Cmd::Error    => { println!("Error"); process::exit(1) },
-                    Cmd::Info     => println!("{}", cpu),
-                    Cmd::List     =>
+                    Cmd::Empty => (),
+                    Cmd::Info => println!("{}", cpu),
+                    Cmd::List =>
                         self.disasm.disassemble_range(bus, pc-10, pc+20, pc),
-                    Cmd::Quit     => { println!("Ta.."); process::exit(0) },
+                    Cmd::Quit => { println!("Ta.."); process::exit(0) },
                     Cmd::Run      => run = true,
                     Cmd::Step     => step = true,
                     Cmd::Trace    => trace = true,
@@ -154,6 +229,7 @@ impl Debugger {
                         self.view_stack(bus, stack_start, regs.gpr[15]),
                     Cmd::View {start, end} =>
                         self.disasm.disassemble_range(bus, start, end, pc),
+                    Cmd::Err { msg } => println!("error: {}", msg)
                 }
                 println!();
             }
