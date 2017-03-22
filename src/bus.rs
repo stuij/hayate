@@ -1,7 +1,6 @@
 use thalgar;
 
 use common;
-use common::MemAccess;
 use game_info;
 use mem_defs::*;
 

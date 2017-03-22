@@ -1,7 +1,7 @@
 // bios
 pub const BIOS_INSTR_START: u32 = 0x00000000;
 pub const BIOS_INSTR_LEN:   u32 = 0x00080000;
-pub const BIOS_INSTR_END:   u32 = BIOS_INSTR_START + BIOS_INSTR_LEN;
+pub const _BIOS_INSTR_END:   u32 = BIOS_INSTR_START + BIOS_INSTR_LEN;
 
 // game flashrom
 pub const GAME_INSTR_START: u32 = 0x06000000;

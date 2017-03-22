@@ -1,7 +1,3 @@
-use std::ptr;
-use std::mem;
-
-
 pub trait MemAccess {
     fn read_mem(src: &[u8], addr: usize) -> Self;
     fn write_mem(src: &mut [u8], addr: usize, val: Self);

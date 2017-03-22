@@ -58,7 +58,7 @@ impl Debugger {
             Some(x) => {
                 match u32::from_str_radix(x, 16) {
                     Ok(x) => Cmd::Break { bkpt: x },
-                    Err(x) => Cmd::Err { msg: "couldn't parse address"}
+                    Err(_) => Cmd::Err { msg: "couldn't parse address"}
                 }
             },
             None => Cmd::Err { msg: "no bkpt address"}
@@ -71,7 +71,7 @@ impl Debugger {
             Some(x) => {
                 match u32::from_str_radix(x, 16) {
                     Ok(x) => Cmd::ClearBkpt { bkpt: x },
-                    Err(x) => Cmd::Err { msg: "couldn't parse address"}
+                    Err(_) => Cmd::Err { msg: "couldn't parse address"}
                 }
             },
             None => Cmd::Err { msg: "no bkpt address"}
@@ -84,7 +84,7 @@ impl Debugger {
             Some(x) => {
                 match u32::from_str_radix(x, 16) {
                     Ok(x) => x,
-                    Err(x) => return Cmd::Err {
+                    Err(_) => return Cmd::Err {
                         msg: "couldn't parse first address"
                     },
                 }
@@ -96,7 +96,7 @@ impl Debugger {
             Some(x) => {
                 match u32::from_str_radix(x, 16) {
                     Ok(x) => x,
-                    Err(x) => return Cmd::Err {
+                    Err(_) => return Cmd::Err {
                         msg: "couldn't parse second address"
                     },
                 }
@@ -120,7 +120,7 @@ impl Debugger {
 
         let first = match u32::from_str_radix(what, 16) {
             Ok(x) => x,
-            Err(x) => return Cmd::Err {
+            Err(_) => return Cmd::Err {
                 msg: "couldn't parse first address"
             },
         };
@@ -129,7 +129,7 @@ impl Debugger {
             Some(x) => {
                 match u32::from_str_radix(x, 16) {
                     Ok(x) => x,
-                    Err(x) => return Cmd::Err {
+                    Err(_) => return Cmd::Err {
                         msg: "couldn't parse second address"
                     },
                 }
@@ -142,10 +142,9 @@ impl Debugger {
 
 
     fn get_cmd(&self) -> Cmd {
-        let mut input = self.get_input();
+        let input = self.get_input();
         let mut iter = input.split_whitespace();
 
-        // TODO: maybe not unwrap!
         match iter.next() {
             Some("b") => self.parse_break(iter),
             Some("clear") => self.parse_break_clear(iter),
