@@ -4,8 +4,8 @@ extern crate clap;
 extern crate thalgar;
 extern crate zip;
 
-mod bus;
 mod common;
+mod mem;
 mod cps3;
 mod debugger;
 mod game_info;

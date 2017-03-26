@@ -5,14 +5,14 @@ use game_info;
 use mem_defs::*;
 
 
-pub struct Cps3Bus {
+pub struct Cps3Mem {
     pub rom: game_info::GameRom, // flashroms
     pub main_ram: Box<[u8]>
 }
 
-impl Cps3Bus {
-    pub fn new (rom: game_info::GameRom) -> Cps3Bus {
-        Cps3Bus {
+impl Cps3Mem {
+    pub fn new (rom: game_info::GameRom) -> Cps3Mem {
+        Cps3Mem {
             rom: rom,
             main_ram: { let ram = vec![0; MAIN_RAM_LEN as usize];
                         ram.into_boxed_slice() }
@@ -45,7 +45,7 @@ impl Cps3Bus {
 }
 
 
-impl thalgar::Bus for Cps3Bus {
+impl thalgar::Bus for Cps3Mem {
     fn read_word(&self, addr: u32) -> u16 {
         // this looks like overengineering, but this will actually
         // save us some trouble in the end, as we can't just map to mem

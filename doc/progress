@@ -62,3 +62,5 @@ The first thing I want to know is if our rom files have their data encrypted or 
 
 
 rlwrap ... will do for now for all our editing needs.
+
+rlwrap cargo run -- --from-bins roms/sf3iiin-massaged

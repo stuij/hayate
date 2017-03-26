@@ -6,7 +6,7 @@ use std::str;
 
 use thalgar;
 use thalgar::Bus;
-use bus;
+use mem;
 
 enum Cmd {
     Break { bkpt: u32 },
@@ -162,14 +162,16 @@ impl Debugger {
         }
     }
 
-    fn print_mem(&self, bus: &bus::Cps3Bus, start: u32, end: u32) {
+    fn print_mem(&self, bus: &thalgar::Sh7604Mem<mem::Cps3Mem>,
+                 start: u32, end: u32) {
         for i in (start..end).filter(|x| x % 4 == 0) {
             let val = bus.read_long(i);
             println!("{:#010x}: {:#010x}", i, val);
         }
     }
 
-    fn view_stack(&self, bus: &bus::Cps3Bus, start: u32, end: u32) {
+    fn view_stack(&self, bus: &thalgar::Sh7604Mem<mem::Cps3Mem>,
+                  start: u32, end: u32) {
         self.print_mem(bus, end, start);
     }
 
@@ -183,7 +185,7 @@ impl Debugger {
 
     pub fn debug(&mut self,
              cpu: &mut thalgar::Sh2,
-             bus: &mut bus::Cps3Bus,
+             bus: &mut thalgar::Sh7604Mem<mem::Cps3Mem>,
              mut run: bool) {
 
         let mut step = false;
@@ -217,7 +219,7 @@ impl Debugger {
                     Cmd::Empty => (),
                     Cmd::Info => println!("{}", cpu),
                     Cmd::List =>
-                        self.disasm.disassemble_range(bus, pc-10, pc+20, pc),
+                        self.disasm.disassemble_range(bus, pc-10, pc+40, pc),
                     Cmd::Quit => { println!("Ta.."); process::exit(0) },
                     Cmd::Run      => run = true,
                     Cmd::Step     => step = true,
@@ -227,7 +229,7 @@ impl Debugger {
                     Cmd::ViewStack =>
                         self.view_stack(bus, stack_start, regs.gpr[15]),
                     Cmd::View {start, end} =>
-                        self.disasm.disassemble_range(bus, start, end, pc),
+                        self.print_mem(bus, start, end),
                     Cmd::Err { msg } => println!("error: {}", msg)
                 }
                 println!();
