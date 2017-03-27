@@ -204,11 +204,13 @@ impl Debugger {
                 if self.bkpts.contains(&cpu.get_pc()) {
                     run = false;
                 };
+                if !run {
+                    self.disasm.disasemble(bus, cpu.get_pc());
+                }
                 step = false;
             } else {
                 let regs = cpu.get_regs();
                 let pc = regs.pc;
-                self.disasm.disasemble(bus, pc);
                 let cmd = self.get_cmd();
 
                 match cmd {
@@ -219,7 +221,7 @@ impl Debugger {
                     Cmd::Empty => (),
                     Cmd::Info => println!("{}", cpu),
                     Cmd::List =>
-                        self.disasm.disassemble_range(bus, pc-10, pc+40, pc),
+                        self.disasm.disassemble_range(bus, pc-30, pc+40, pc),
                     Cmd::Quit => { println!("Ta.."); process::exit(0) },
                     Cmd::Run      => run = true,
                     Cmd::Step     => step = true,
