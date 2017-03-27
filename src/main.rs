@@ -4,14 +4,12 @@ extern crate clap;
 extern crate thalgar;
 extern crate zip;
 
-mod common;
 mod mem;
 mod cps3;
 mod debugger;
 mod game_info;
 mod mem_defs;
 mod rom;
-
 
 
 fn assert_rom(rom: &game_info::GameRom) {

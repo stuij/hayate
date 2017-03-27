@@ -1,6 +1,6 @@
 use thalgar;
 
-use common::MemAccess;
+use thalgar::MemAccess;
 use debugger;
 use game_info;
 use mem;

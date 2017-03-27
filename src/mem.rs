@@ -1,6 +1,5 @@
 use thalgar;
 
-use common;
 use game_info;
 use mem_defs::*;
 
@@ -19,7 +18,7 @@ impl Cps3Mem {
         }
     }
 
-    fn read_mem<T: common::MemAccess>(&self, addr: u32) -> T {
+    fn read_mem<T: thalgar::MemAccess>(&self, addr: u32) -> T {
         match addr {
             MAIN_RAM_START ... MAIN_RAM_END => {
                 let offset = (addr ^ MAIN_RAM_START) as usize;
@@ -33,7 +32,7 @@ impl Cps3Mem {
         }
     }
 
-    fn write_mem<T: common::MemAccess>(&mut self, addr: u32, val: T) {
+    fn write_mem<T: thalgar::MemAccess>(&mut self, addr: u32, val: T) {
         match addr {
             MAIN_RAM_START ... MAIN_RAM_END => {
                 let offset = (addr ^ MAIN_RAM_START) as usize;
@@ -46,20 +45,30 @@ impl Cps3Mem {
 
 
 impl thalgar::Bus for Cps3Mem {
+    // this looks like overengineering, but this will actually
+    // save us some trouble in the end, as we can't just map to mem
+    // like this all the time
+    fn read_byte(&self, addr: u32) -> u8 {
+        self.read_mem::<u8>(addr)
+    }
+
+    fn write_byte(&mut self, addr: u32, val: u8) {
+        self.write_mem::<u8>(addr, val)
+    }
+
     fn read_word(&self, addr: u32) -> u16 {
-        // this looks like overengineering, but this will actually
-        // save us some trouble in the end, as we can't just map to mem
-        // like this all the time
         self.read_mem::<u16>(addr)
     }
 
+    fn write_word(&mut self, addr: u32, val: u16) {
+        self.write_mem::<u16>(addr, val)
+    }
+
     fn read_long(&self, addr: u32) -> u32 {
-        // see read_word
         self.read_mem::<u32>(addr)
     }
 
     fn write_long(&mut self, addr: u32, val: u32) {
-        // see read_word
         self.write_mem::<u32>(addr, val)
     }
 }
