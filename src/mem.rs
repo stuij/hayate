@@ -28,7 +28,7 @@ impl Cps3Mem {
                 let offset = (addr ^ GAME_INSTR_START) as usize;
                 T::read_mem(&self.rom.instr, offset)
             },
-            _ => panic!("address not mapped: {:#010x}", addr)
+            _ => panic!("read address not mapped: {:#010x}", addr)
         }
     }
 
@@ -38,7 +38,7 @@ impl Cps3Mem {
                 let offset = (addr ^ MAIN_RAM_START) as usize;
                 T::write_mem(&mut self.main_ram, offset, val);
             },
-            _ => panic!("address not mapped: {:#010x}", addr)
+            _ => panic!("write address not mapped: {:#010x}", addr)
         }
     }
 }
@@ -61,7 +61,11 @@ impl thalgar::Bus for Cps3Mem {
     }
 
     fn write_word(&mut self, addr: u32, val: u16) {
-        self.write_mem::<u16>(addr, val)
+        match addr {
+            0x040c0082 => (), // unknown video (?) register
+            _ => self.write_mem::<u16>(addr, val)
+        }
+
     }
 
     fn read_long(&self, addr: u32) -> u32 {
